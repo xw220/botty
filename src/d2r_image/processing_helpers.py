@@ -115,8 +115,8 @@ def crop_item_tooltip(image: np.ndarray, model: str = "hover-eng_inconsolata_inv
         if not (contains_white or contains_orange):
             continue
 
-        # check to see if contour overlaps right inventory
-        right_inv = Config().ui_roi["right_inventory"]
+        # check to see if contour overlaps right inventory area (extended area including header)
+        right_inv = Config().ui_roi["right_inventory_area"]
         overlaps_inventory = not (
             x+w < right_inv[0] or right_inv[0]+right_inv[2] < x or y+h+60 < right_inv[1] or right_inv[1]+right_inv[3] < y)
         if not overlaps_inventory:

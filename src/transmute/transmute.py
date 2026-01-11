@@ -258,10 +258,9 @@ class Transmute:
             if inv.count() >= 3:
                 self.open_cube()
                 for gem in inv.all_items():
-                    while inv.count_by(gem) > 0:
+                    while inv.count_by(gem) >= 3:
                         for _ in range(3):
-                            next = inv.pop(gem)
-                            self.pick_from_inventory_at(*next)
+                            self.pick_from_inventory_at(*inv.pop(gem))
                         self.transmute()
                         self.pick_from_cube_at(2, 3)
                 self.close_cube()
