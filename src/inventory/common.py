@@ -182,43 +182,45 @@ def left_inventory_ready(img = np.ndarray):
         return any(np.sum(i) > 0 for i in [text, red, blue])
     return False
 
-def tab_properties(idx: int = 0) -> dict[int, int, tuple]:
-    tab_width = round(int(Config().ui_roi["tab_indicator"][2]) / 4)
-    x_start = int(Config().ui_roi["tab_indicator"][0])
+def tab_properties(idx: int = 0, is_stash: bool = False) -> dict[int, int, tuple]:
+    roi_key = "stash_tab_indicator" if is_stash else "tab_indicator"
+    tab_width = round(int(Config().ui_roi[roi_key][2]) / 4)
+    x_start = int(Config().ui_roi[roi_key][0])
     left = idx * tab_width + x_start
     right = (idx + 1) * tab_width + x_start
     x_center = (left + right) / 2
-    y_center = int(Config().ui_roi["tab_indicator"][1]) - 5
+    y_center = int(Config().ui_roi[roi_key][1]) - 5
     return {
         "left": round(left),
         "right": round(right),
         "center": (x_center, y_center)
     }
 
-def indicator_location_to_tab_count(pos: tuple) -> int:
+def indicator_location_to_tab_count(pos: tuple, is_stash: bool = False) -> int:
     for i in range(4):
-        tab = tab_properties(i)
+        tab = tab_properties(i, is_stash)
         if tab["left"] <= pos[0] < tab["right"]:
             return i
     return -1
 
-def get_active_tab(indicator: TemplateMatch = None) -> int:
-    indicator = detect_screen_object(ScreenObjects.TabIndicator) if indicator is None else indicator
+def get_active_tab(indicator: TemplateMatch = None, is_stash: bool = False) -> int:
+    screen_obj = ScreenObjects.StashTabIndicator if is_stash else ScreenObjects.TabIndicator
+    indicator = detect_screen_object(screen_obj) if indicator is None else indicator
     if indicator.valid:
-        return indicator_location_to_tab_count(indicator.center)
+        return indicator_location_to_tab_count(indicator.center, is_stash)
     else:
         center_mouse()
-        if (indicator := detect_screen_object(ScreenObjects.TabIndicator)).valid:
-            return indicator_location_to_tab_count(indicator.center)
+        if (indicator := detect_screen_object(screen_obj)).valid:
+            return indicator_location_to_tab_count(indicator.center, is_stash)
         else:
             Logger.error("common/get_active_tab(): Error finding tab indicator")
     return -1
 
-def select_tab(idx: int):
+def select_tab(idx: int, is_stash: bool = False):
     # stash or vendor must be open
     # indices start from 0
-    if not get_active_tab() == idx:
-        tab = tab_properties(idx)
+    if not get_active_tab(is_stash=is_stash) == idx:
+        tab = tab_properties(idx, is_stash)
         pos = convert_screen_to_monitor(tab["center"])
         mouse.move(*pos)
         wait(0.2, 0.3)

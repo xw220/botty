@@ -95,7 +95,7 @@ class Transmute:
         self._wait()
 
     def open_cube(self):
-        common.select_tab(0)
+        common.select_tab(0, is_stash=True)
         if (match := detect_screen_object(ScreenObjects.CubeInventory)).valid:
             mouse.move(*match.center_monitor)
             self._wait()
@@ -122,8 +122,8 @@ class Transmute:
         return self.pick_from_area(column, row, Config().ui_roi["right_inventory"])
 
     def pick_from_stash_at(self, index, column, row):
-        common.select_tab(index)
-        return self.pick_from_area(column, row, Config().ui_roi["left_inventory"])
+        common.select_tab(index, is_stash=True)
+        return self.pick_from_area(column, row, Config().ui_roi["stash_inventory"])
 
     def inspect_area(self, total_rows, total_columns, roi, known_items) -> InventoryCollection:
         result = InventoryCollection()
@@ -156,10 +156,10 @@ class Transmute:
     def inspect_stash(self, gemsToTransmute) -> Stash:
         stash = Stash()
         for i in range(4):
-            common.select_tab(i)
+            common.select_tab(i, is_stash=True)
             wait(0.4, 0.5)
             tab = self.inspect_area(
-                10, 10, Config().ui_roi["left_inventory"], gemsToTransmute)
+                10, 10, Config().ui_roi["stash_inventory"], gemsToTransmute)
             stash.add_tab(i, tab)
         return stash
 
@@ -170,7 +170,7 @@ class Transmute:
             while flawless_gems.count_by(gem) > 0:
                 pick.append((randint(0, 3), *flawless_gems.pop(gem)))
         for tab, x, y in sorted(pick, key=lambda x: x[0]):
-            common.select_tab(tab)
+            common.select_tab(tab, is_stash=True)
             self.pick_from_inventory_at(x, y)
 
     def select_tab_with_enough_space(self, s: Stash) -> None:
@@ -178,7 +178,7 @@ class Transmute:
         Config().configs["transmute"]["parser"]["stash_destination"]
         for tab in tabs_priority:
             if s.get_empty_on_tab(tab) > 0:
-                common.select_tab(tab)
+                common.select_tab(tab, is_stash=True)
                 break
 
     def put_back_all_gems(self, s: Stash, gemsToTransmute,gemsToPutBack) -> None:

@@ -254,6 +254,10 @@ class ScreenObjects:
         ref="TAB_INDICATOR",
         roi="tab_indicator",
     )
+    StashTabIndicator=ScreenObject(
+        ref="STASH_TAB_INDICATOR",
+        roi="stash_tab_indicator",
+    )
     DepositBtn=ScreenObject(
         ref=["DEPOSIT_BTN", "DEPOSIT_BTN_BRIGHT"],
         threshold=0.8,
