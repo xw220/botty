@@ -41,20 +41,20 @@ class DiscordEmbeds(GenericApi):
         )
         e.set_thumbnail(url=f"{self._psnURL}41L6bd712.png")
         e.set_image(url=f"attachment://{imgName}.png")
-        e.add_field(name="OCR Text", value=f"{ocr_text}", inline=False)
+        if Config().general["discord_show_ocr_text"] and ocr_text:
+            e.add_field(name="OCR Text", value=f"{ocr_text}", inline=False)
         e.add_field(name="BNIP", value=f"`{bnip_keep_expression}`", inline=False)
-        # Escape the quotes
-
-        new_dict = {
-            "NTIPAliasIdName": item_props["NTIPAliasIdName"],
-            "NTIPAliasType": item_props["NTIPAliasType"],
-            "NTIPAliasClassID": item_props["NTIPAliasClassID"],
-            "NTIPAliasClass": item_props["NTIPAliasClass"],
-            "NTIPAliasQuality": item_props["NTIPAliasQuality"],
-            "NTIPAliasStat": item_props["NTIPAliasStat"],
-            "NTIPAliasFlag": item_props["NTIPAliasFlag"]
-        }
-        e.add_field(name="ItemProps", value= '`' + json.dumps(new_dict, sort_keys=True) + '`', inline=False)
+        if Config().general["discord_show_item_props"] and item_props:
+            new_dict = {
+                "NTIPAliasIdName": item_props["NTIPAliasIdName"],
+                "NTIPAliasType": item_props["NTIPAliasType"],
+                "NTIPAliasClassID": item_props["NTIPAliasClassID"],
+                "NTIPAliasClass": item_props["NTIPAliasClass"],
+                "NTIPAliasQuality": item_props["NTIPAliasQuality"],
+                "NTIPAliasStat": item_props["NTIPAliasStat"],
+                "NTIPAliasFlag": item_props["NTIPAliasFlag"]
+            }
+            e.add_field(name="ItemProps", value= '`' + json.dumps(new_dict, sort_keys=True) + '`', inline=False)
         self._send_embed(e, self._loot_webhook, file)
 
     def send_death(self, location, image_path):

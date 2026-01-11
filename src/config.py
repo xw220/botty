@@ -139,6 +139,8 @@ class Config:
             "custom_loot_message_hook": self._select_val("general", "custom_loot_message_hook"),
             "discord_status_count": False if not self._select_val("general", "discord_status_count") else int(self._select_val("general", "discord_status_count")),
             "discord_log_chicken": bool(int(self._select_val("general", "discord_log_chicken"))),
+            "discord_show_ocr_text": bool(int(_default_iff(self._select_val("general", "discord_show_ocr_text"), '', 0))),
+            "discord_show_item_props": bool(int(_default_iff(self._select_val("general", "discord_show_item_props"), '', 0))),
             "info_screenshots": bool(int(self._select_val("general", "info_screenshots"))),
             "pickit_screenshots": bool(int(self._select_val("general", "pickit_screenshots"))),
             "d2r_path": _default_iff(self._select_val("general", "d2r_path"), "", "C:\Program Files (x86)\Diablo II Resurrected"),
