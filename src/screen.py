@@ -6,6 +6,15 @@ from config import Config
 import threading
 import time
 
+# Thread-local storage for mss instances to avoid multi-threading issues
+_thread_local = threading.local()
+
+def _get_sct():
+    """Get mss instance for current thread"""
+    if not hasattr(_thread_local, 'sct'):
+        _thread_local.sct = mss()
+    return _thread_local.sct
+
 sct = mss()
 monitor_roi = sct.monitors[0]
 found_offsets = False
@@ -78,7 +87,8 @@ def grab(force_new: bool = False) -> np.ndarray:
     else:
         with cached_img_lock:
             last_grab = time.perf_counter()
-        img = np.array(sct.grab(monitor_roi))
+        # Use thread-local mss instance to avoid multi-threading issues
+        img = np.array(_get_sct().grab(monitor_roi))
         with cached_img_lock:
             cached_img = img[:, :, :3]
         return cached_img
