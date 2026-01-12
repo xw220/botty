@@ -95,7 +95,7 @@ class DiscordEmbeds(GenericApi):
         self._send_embed(e, self._webhook)
 
     def _send_embed(self, e, webhook, file = None):
-        e.set_footer(text=f'Botty v.{__version__} by xw220')
+        e.set_footer(text=f'Botty v.{__version__} (fork by xw220, based on aeon0/botty)')
         e.timestamp=datetime.datetime.now(datetime.timezone.utc)
         try:
             webhook.send(embed=e, file=file, username=Config().general['name'])
