@@ -75,24 +75,24 @@ class HydraSorc(Sorceress):
         for _ in range(int(Config().char["atk_len_shenk"] * 0.5)):
             self._hydra(cast_pos_abs, spray=0)
             self._alt_attack(cast_pos_abs, spray=90)
-        pos_m = convert_abs_to_monitor((150, 50))
-        self.pre_move()
-        self.move(pos_m, force_move=True)
+        # pos_m = convert_abs_to_monitor((150, 50))
+        # self.pre_move()
+        # self.move(pos_m, force_move=True)
         shenk_pos_abs = convert_screen_to_abs(Config().path["shenk_end"][0])
         cast_pos_abs = [shenk_pos_abs[0] * 0.9, shenk_pos_abs[1] * 0.9]
         for _ in range(int(Config().char["atk_len_shenk"] * 0.5)):
             self._hydra(cast_pos_abs, spray=0)
             self._alt_attack(cast_pos_abs, spray=90)
-        pos_m = convert_abs_to_monitor((150, 50))
-        self.pre_move()
-        self.move(pos_m, force_move=True)
+        # pos_m = convert_abs_to_monitor((150, 50))
+        # self.pre_move()
+        # self.move(pos_m, force_move=True)
         shenk_pos_abs = convert_screen_to_abs(Config().path["shenk_end"][0])
         cast_pos_abs = [shenk_pos_abs[0] * 0.9, shenk_pos_abs[1] * 0.9]
         for _ in range(int(Config().char["atk_len_shenk"])):
             self._hydra(cast_pos_abs, spray=0)
             self._alt_attack(cast_pos_abs, spray=90)
-        self.pre_move()
-        self.move(pos_m, force_move=True)
+        # self.pre_move()
+        # self.move(pos_m, force_move=True)
         # Move to items
         wait(self._cast_duration, self._cast_duration + 0.2)
         self._pather.traverse_nodes((Location.A5_SHENK_SAFE_DIST, Location.A5_SHENK_END), self, timeout=1.4, force_tp=True)

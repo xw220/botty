@@ -153,8 +153,13 @@ class Config:
         del self.configs["config"]["parser"]["routes"]["order"]
         for key in self.routes_order:
             self.routes[key] = True
-        # Botty only knows "run_shenk" but in orders we split run_eldritch and run_eldritch_shenk
-        self.routes_order = ["run_shenk" if x in ["run_eldritch", "run_eldritch_shenk"] else x for x in self.routes_order]
+
+        # If run_eldritch_shenk is active, remove run_shenk as it is redundant
+        if "run_eldritch_shenk" in self.routes_order and "run_shenk" in self.routes_order:
+            self.routes_order.remove("run_shenk")
+
+        # Redirect run_eldritch_shenk to run_eldritch as they share the same run key in bot.py
+        self.routes_order = ["run_eldritch" if x == "run_eldritch_shenk" else x for x in self.routes_order]
 
         self.char = {
             "type": self._select_val("char", "type"),

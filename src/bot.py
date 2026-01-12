@@ -36,7 +36,7 @@ from ui_manager import wait_until_hidden, wait_until_visible, ScreenObjects, is_
 from ui import meters, skills, view, character_select, main_menu
 from inventory import personal, vendor, belt, common
 
-from run import Pindle, ShenkEld, Trav, Nihlathak, Arcane, Diablo
+from run import Pindle, ShenkEld, Shenk, Trav, Nihlathak, Arcane, Diablo
 from town import TownManager, A1, A2, A3, A4, A5, town_manager
 
 from messages import Messenger
@@ -93,7 +93,8 @@ class Bot:
         self._do_runs = {
             "run_trav": Config().routes.get("run_trav"),
             "run_pindle": Config().routes.get("run_pindle"),
-            "run_shenk": Config().routes.get("run_eldritch") or Config().routes.get("run_eldritch_shenk"),
+            "run_eldritch": Config().routes.get("run_eldritch") or Config().routes.get("run_eldritch_shenk"),
+            "run_shenk": Config().routes.get("run_shenk"),
             "run_nihlathak": Config().routes.get("run_nihlathak"),
             "run_arcane": Config().routes.get("run_arcane"),
             "run_diablo": Config().routes.get("run_diablo"),
@@ -107,7 +108,8 @@ class Bot:
         if Config().general["randomize_runs"]:
             self.shuffle_runs()
         self._pindle = Pindle(self._pather, self._town_manager, self._char, self._pickit, runs)
-        self._shenk = ShenkEld(self._pather, self._town_manager, self._char, self._pickit, runs)
+        self._eldritch = ShenkEld(self._pather, self._town_manager, self._char, self._pickit, runs)
+        self._shenk = Shenk(self._pather, self._town_manager, self._char, self._pickit, runs)
         self._trav = Trav(self._pather, self._town_manager, self._char, self._pickit, runs)
         self._nihlathak = Nihlathak(self._pather, self._town_manager, self._char, self._pickit, runs)
         self._arcane = Arcane(self._pather, self._town_manager, self._char, self._pickit, runs)
@@ -137,6 +139,7 @@ class Bot:
             { 'trigger': 'maintenance', 'source': 'town', 'dest': 'town', 'before': "on_maintenance"},
             # Different runs
             { 'trigger': 'run_pindle', 'source': 'town', 'dest': 'pindle', 'before': "on_run_pindle"},
+            { 'trigger': 'run_eldritch', 'source': 'town', 'dest': 'shenk', 'before': "on_run_eldritch"},
             { 'trigger': 'run_shenk', 'source': 'town', 'dest': 'shenk', 'before': "on_run_shenk"},
             { 'trigger': 'run_trav', 'source': 'town', 'dest': 'trav', 'before': "on_run_trav"},
             { 'trigger': 'run_nihlathak', 'source': 'town', 'dest': 'nihlathak', 'before': "on_run_nihlathak"},
@@ -494,13 +497,24 @@ class Bot:
             res = self._pindle.battle(not self._pre_buffed)
         self._ending_run_helper(res)
 
+
+
+    def on_run_eldritch(self):
+        res = False
+        self._do_runs["run_eldritch"] = False
+        self._curr_loc = self._eldritch.approach(self._curr_loc)
+        if self._curr_loc:
+            set_pause_state(False)
+            res = self._eldritch.battle(Config().routes.get("run_eldritch_shenk"), not self._pre_buffed, self._game_stats)
+        self._ending_run_helper(res)
+
     def on_run_shenk(self):
         res = False
         self._do_runs["run_shenk"] = False
         self._curr_loc = self._shenk.approach(self._curr_loc)
         if self._curr_loc:
             set_pause_state(False)
-            res = self._shenk.battle(Config().routes.get("run_eldritch_shenk"), not self._pre_buffed, self._game_stats)
+            res = self._shenk.battle(not self._pre_buffed, self._game_stats)
         self._ending_run_helper(res)
 
     def on_run_trav(self):

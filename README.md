@@ -102,7 +102,7 @@ order=run_pindle, run_eldritch
 
 | [routes]     | Descriptions                                                             |
 | ------------ | ------------------------------------------------------------------------ |
-| order        | List of runs botty should do. These will be run in the the order listed unless `randomize_runs` is set to 1. Possible runs: </br> run_trav, run_pindle, run_eldritch, run_eldritch_shenk, run_nihlathak (requires teleport), run_arcane (requires teleport), run_diablo (requires teleport, only hammardin)
+| order        | List of runs botty should do. These will be run in the the order listed unless `randomize_runs` is set to 1. Possible runs: </br> run_trav, run_pindle, run_eldritch, run_eldritch_shenk, run_shenk, run_nihlathak (requires teleport), run_arcane (requires teleport), run_diablo (requires teleport, only hammardin)
 
 | [char]             | Descriptions |
 | ------------------ | -------------------------------------------------------------------------------------------------|
