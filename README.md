@@ -5,7 +5,8 @@ Pixelbot for Diablo 2 Resurrected. This project is for informational and educati
 [**Download here**](https://github.com/aeon0/botty/releases) and got to have a [**Discord**](https://discord.gg/Jf3J8cuXWg) nowadays I guess :man_shrugging:
 
 ## Getting started & Prerequisites
-- D2R needs to be in English Language,
+- **Game Version**: This version is tested and compatible with D2R v2.9.0
+- D2R needs to be in English Language
 - Botty currently works with 720p D2R window (will be adjusted automatically on auto settings)
 
 ### 1) Graphics and Gameplay Settings
@@ -85,6 +86,8 @@ order=run_pindle, run_eldritch
 | custom_loot_message_hook      | Add your message hook here (such as Discord channel) to get info about loot |
 | custom_message_hook      | Add your message hook here (such as Discord channel) to get info about botty status updates, discord webhook is default. |
 | discord_log_chicken      | Set to `1` to enable messages about bot chickens, `0` to disable. |
+| discord_show_ocr_text    | Set to `1` to show OCR text in Discord loot messages, `0` to hide (default). |
+| discord_show_item_props  | Set to `1` to show item properties (NTIPAlias data) in Discord loot messages, `0` to hide (default). |
 | discord_status_count     | Number of games between discord status messages being sent. Leave empty for no status reports. |
 | message_api_type         | Which api to use to send botty messages.  Supports "generic_api" (basic discord), or "discord" (discord embeds with images). |
 | break_length_m           | Break for `break_length_m` minutes every `max_runtime_before_break_m` minutes |
