@@ -1,8 +1,6 @@
 # <img src="assets/docs/header_green.png" width="370">
 
-Pixelbot for Diablo 2 Resurrected. This project is for informational and educational purposes only and is not meant for online usage. Feel free to dig around, add stuff, make PRs, or ask questions should you get stuck!
-
-[**Download here**](https://github.com/aeon0/botty/releases) and got to have a [**Discord**](https://discord.gg/Jf3J8cuXWg) nowadays I guess :man_shrugging:
+Pixelbot for Diablo 2 Resurrected. This project is for informational and educational purposes only.
 
 ## Getting started & Prerequisites
 - **Game Version**: This version is tested and compatible with D2R v2.9.0
@@ -29,11 +27,6 @@ You can either run from python. Follow [development.md](development.md) for that
 ## Development
 
 Check out the [development.md](development.md) docu for infos on how to build from source and details of the project structure and code.
-
-## Support this project 💓
-
-You can support this project by giving feedback, reporting bugs, or creating pull requests.
-Contributions are welcome, and we encourage you to contribute to this project if you would like to help out. Botty is a open source project and almost excessively maintained by contributors (there has been 50+ contributors! <3). In our [**discord**](https://discord.gg/Jf3J8cuXWg) there is a contributor role, and you can ping one of the admins and ask for the role to talk to other contributors! Though you don't need to be in the [**discord**](https://discord.gg/Jf3J8cuXWg) to contribute, we do encourage you to do so.
 
 ## BNIP Pickit
 
