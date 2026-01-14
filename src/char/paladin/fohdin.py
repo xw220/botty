@@ -67,8 +67,16 @@ class FoHdin(Paladin):
 
                 # TODO: add delay between FOH casts--doesn't properly cast each FOH in sequence
                 # cast foh to holy bolt with preset ratio (e.g. 3 foh followed by 1 holy bolt if foh_to_holy_bolt_ratio = 3)
-                if foh_to_holy_bolt_ratio > 0 and not target_check_count % (foh_to_holy_bolt_ratio + 1):
-                    self._cast_holy_bolt(cast_pos_abs, spray=spray, aura=holy_bolt_aura)
+                if foh_to_holy_bolt_ratio > 0:
+                    if not target_check_count % (foh_to_holy_bolt_ratio + 1):
+                        self._cast_holy_bolt(cast_pos_abs, spray=spray, aura=holy_bolt_aura)
+                    else:
+                        self._cast_foh(cast_pos_abs, spray=spray, aura=foh_aura)
+                elif foh_to_holy_bolt_ratio < 0:
+                    if not target_check_count % (abs(foh_to_holy_bolt_ratio) + 1):
+                        self._cast_foh(cast_pos_abs, spray=spray, aura=foh_aura)
+                    else:
+                        self._cast_holy_bolt(cast_pos_abs, spray=spray, aura=holy_bolt_aura)
                 else:
                     self._cast_foh(cast_pos_abs, spray=spray, aura=foh_aura)
 
@@ -756,7 +764,7 @@ class FoHdin(Paladin):
         atk_len_dur = float(Config().char["atk_len_diablo"])
         Logger.debug("Attacking Diablo at position 1/1")
         diablo_abs = [100,-100] #hardcoded dia pos.
-        self._generic_foh_attack_sequence(default_target_abs=diablo_abs, min_duration=atk_len_dur, max_duration=atk_len_dur*3, aura="concentration", foh_to_holy_bolt_ratio=2)
+        self._generic_foh_attack_sequence(default_target_abs=diablo_abs, min_duration=atk_len_dur, max_duration=atk_len_dur*3, aura="concentration", foh_to_holy_bolt_ratio=-3)
         self._activate_cleanse_redemption()
         ### LOOT ###
         #self._cs_pickit()
