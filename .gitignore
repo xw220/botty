@@ -46,3 +46,4 @@ env/
 *.temp
 debug_*.py
 config/bnip/md.nip
+DEV_PLAN.md
