@@ -47,3 +47,8 @@ env/
 debug_*.py
 config/bnip/md.nip
 DEV_PLAN.md
+.antigravityrules
+debug_gui_test.txt
+debug_gui_test_2.txt
+debug_output.txt
+TESTING.md
