@@ -270,42 +270,50 @@ class IChar:
         return False
 
     def _pre_buff_cta(self):
-        # Save current skill img
-        skill_before = cut_roi(grab(), Config().ui_roi["skill_right"])
-        # Try to switch weapons and select bo until we find the skill on the right skill slot
-        start = time.time()
-        switch_sucess = False
-        while time.time() - start < 4:
-            keyboard.send(Config().char["weapon_switch"])
-            wait(0.3, 0.35)
-            self._select_skill(skill = "battle_command", mouse_click_type="right", delay=(0.1, 0.2))
-            if skills.is_right_skill_selected(["BC", "BO"]):
-                switch_sucess = True
-                break
+        # Check if we have cta by checking if we have battle command on right skill
+        self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
+        has_cta_bound = skills.is_right_skill_selected(["BC", "BO"])
 
-        if not switch_sucess:
-            Logger.warning("You dont have Battle Command bound, or you do not have CTA. ending CTA buff")
-            Config().char["cta_available"] = 0
+        if has_cta_bound:
+            # We are on the secondary weapon slot (CTA)
+            Logger.debug("CTA buffs already available (on secondary slot). Casting buffs.")
+            self._cast_cta_buffs()
+            # Switch back to primary
+            self._switch_weapon()
         else:
-            # We switched succesfully, let's pre buff
-            mouse.click(button="right")
-            wait(self._cast_duration + 0.16, self._cast_duration + 0.18)
-            self._select_skill(skill = "battle_orders", mouse_click_type="right", delay=(0.1, 0.2))
-            mouse.click(button="right")
-            wait(self._cast_duration + 0.16, self._cast_duration + 0.18)
-
-        # Make sure the switch back to the original weapon is good
-        start = time.time()
-        while time.time() - start < 4:
-            keyboard.send(Config().char["weapon_switch"])
-            wait(0.3, 0.35)
-            skill_after = cut_roi(grab(), Config().ui_roi["skill_right"])
-            _, max_val, _, _ = cv2.minMaxLoc(cv2.matchTemplate(skill_after, skill_before, cv2.TM_CCOEFF_NORMED))
-            if max_val > 0.9:
-                break
+            # We are likely on the primary weapon slot
+            # Try to switch to secondary
+            if self._switch_weapon():
+                # Check again if we have the skills now
+                self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
+                if skills.is_right_skill_selected(["BC", "BO"]):
+                    Logger.debug("Switched to CTA slot. Casting buffs.")
+                    self._cast_cta_buffs()
+                    # Switch back to primary
+                    self._switch_weapon()
+                else:
+                    Logger.warning("Switched weapon but Battle Command is still not available. Verify CTA setup.")
+                    # Attempt to switch back just in case we are now on a useless slot
+                    self._switch_weapon()
+                    Config().char["cta_available"] = 0
             else:
-                Logger.warning("Failed to switch weapon, try again")
-                wait(0.5)
+                 Logger.warning("Failed to switch weapon to activate CTA.")
+
+    def _switch_weapon(self) -> bool:
+        keyboard.send(Config().char["weapon_switch"])
+        wait(0.3, 0.35)
+        return True
+
+    def _cast_cta_buffs(self):
+        # Battle Command
+        self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
+        mouse.click(button="right")
+        wait(self._cast_duration + 0.16, self._cast_duration + 0.18)
+        
+        # Battle Orders
+        self._select_skill(skill="battle_orders", mouse_click_type="right", delay=(0.1, 0.2))
+        mouse.click(button="right")
+        wait(self._cast_duration + 0.16, self._cast_duration + 0.18)
 
 
     def vec_to_monitor(self, target):
