@@ -285,6 +285,7 @@ class IChar:
             # Try to switch to secondary
             if self._switch_weapon():
                 # Check again if we have the skills now
+                self._set_active_skill("right", "")
                 self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
                 if skills.is_right_skill_selected(["BC", "BO"]):
                     Logger.debug("Switched to CTA slot. Casting buffs.")
