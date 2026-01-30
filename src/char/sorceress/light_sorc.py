@@ -1,4 +1,5 @@
 import keyboard
+import time
 from char.sorceress import Sorceress
 from utils.custom_mouse import mouse
 from logger import Logger
@@ -19,11 +20,11 @@ class LightSorc(Sorceress):
         self._pickit = pickit
         self._picked_up_items = False
 
-    def _chain_lightning(self, cast_pos_abs: tuple[float, float], delay: tuple[float, float] = (0.2, 0.3), spray: int = 10):
+    def _chain_lightning(self, cast_pos_abs: tuple[float, float], delay: tuple[float, float] = (0.2, 0.3), spray: int = 10, iterations: int = 4):
         keyboard.send(Config().char["stand_still"], do_release=False)
         if self._skill_hotkeys["chain_lightning"]:
             keyboard.send(self._skill_hotkeys["chain_lightning"])
-        for _ in range(4):
+        for _ in range(iterations):
             x = cast_pos_abs[0] + (random.random() * 2 * spray - spray)
             y = cast_pos_abs[1] + (random.random() * 2 * spray - spray)
             pos_m = convert_abs_to_monitor((x, y))
@@ -33,11 +34,11 @@ class LightSorc(Sorceress):
             mouse.release(button="left")
         keyboard.send(Config().char["stand_still"], do_press=False)
 
-    def _lightning(self, cast_pos_abs: tuple[float, float], delay: tuple[float, float] = (0.2, 0.3), spray: float = 10):
+    def _lightning(self, cast_pos_abs: tuple[float, float], delay: tuple[float, float] = (0.2, 0.3), spray: float = 10, iterations: int = 3):
         if not self._skill_hotkeys["lightning"]:
             raise ValueError("You did not set lightning hotkey!")
         keyboard.send(self._skill_hotkeys["lightning"])
-        for _ in range(3):
+        for _ in range(iterations):
             x = cast_pos_abs[0] + (random.random() * 2 * spray - spray)
             y = cast_pos_abs[1] + (random.random() * 2 * spray - spray)
             cast_pos_monitor = convert_abs_to_monitor((x, y))
@@ -256,13 +257,71 @@ class LightSorc(Sorceress):
              self._chain_lightning(cast_target, spray=15)
 
     def _cs_attack_sequence(self, min_duration: float = Config().char["atk_len_cs_trashmobs"], max_duration: float = Config().char["atk_len_cs_trashmobs"] * 3):
-        # Improved Fohdin sequence: Attack in a cross pattern to cover more area
-        targets = [(0, 0), (50, 0), (-50, 0), (0, 50), (0, -50)]
-        for target in targets:
-             self._move_and_attack((0, 0), min_duration / len(targets), cast_target=target)
+        self._scan_and_attack_cs_mobs(min_duration, max_duration)
+
+    def _check_trash_mob_active(self) -> bool:
+        # Check if Health Bar (Red) is visible in "Enemy Info" ROI
+        # We strictly check for RED to avoid detecting objects like Seals/Chests/Shrines which have nameplates but no health bar.
+        img = grab()
+        x, y, w, h = Config().ui_roi["enemy_info"]
+        roi_img = img[y:y+h, x:x+w]
+        
+        # Check for RED pixels (Health Bar) AND Text presence (Name)
+        # We need to ensure we are actually looking at a mob nameplate, not just red lava/blood on the floor.
+        mask_red, _ = color_filter(roi_img, Config().colors["red"])
+        if np.sum(mask_red) < 500:
+            return False
+
+        # If red is present, check if there is also text (White, Blue, Gold, Yellow)
+        # This confirms it's a UI element (Nameplate) and not just environment
+        mask_white, _ = color_filter(roi_img, Config().colors["white"])
+        mask_blue, _ = color_filter(roi_img, Config().colors["blue"])
+        mask_gold, _ = color_filter(roi_img, Config().colors["gold"])
+        mask_yellow, _ = color_filter(roi_img, Config().colors["yellow"]) # Minions
+        
+        # Sum of all text pixels
+        text_pixels = np.sum(mask_white) + np.sum(mask_blue) + np.sum(mask_gold) + np.sum(mask_yellow)
+        
+        # Threshold for text: even a short name should have some pixels. 
+        # A few pixels could be noise, so let's say > 200 (arbitrary but safe for text)
+        return text_pixels > 200
+
+    def _scan_and_attack_cs_mobs(self, min_duration: float, max_duration: float):
+        # Scan points (9-point Grid pattern)
+        # Center, Cardinals, Corners
+        scan_points = [
+            (0, 0), 
+            (90, 0), (-90, 0), (0, 90), (0, -90),
+            (90, 90), (90, -90), (-90, 90), (-90, -90)
+        ]
+        
+        start_global = time.time()
+        for point in scan_points:
+            if time.time() - start_global > max_duration:
+                break
+
+            # 1. Move mouse to target
+            pos_m = convert_abs_to_monitor(point)
+            mouse.move(*pos_m, delay_factor=[0.1, 0.2])
+            wait(0.1) # Wait for UI to update
+            
+            # 2. Check if mob is there
+            if self._check_trash_mob_active():
+                # 3. Attack Loop
+                start_attack = time.time()
+                while (time.time() - start_attack) < (max_duration / len(scan_points) * 2): # Cap attack time per point
+                    self._chain_lightning(point, spray=10, iterations=1)
+                    
+                    # 4. Re-check (Exit if dead/lost)
+                    # Note: _chain_lightning moves mouse slightly. The ROI check relies on mouse hover.
+                    # We accept that if the mouse moved off the mob, we consider it "lost" and move on.
+                    # This prevents spamming empty space.
+                    if not self._check_trash_mob_active():
+                         break
+            # Else: Skip point if nothing found
 
     def _cs_trash_mobs_attack_sequence(self, min_duration: float = 1.2, max_duration: float = Config().char["atk_len_cs_trashmobs"]):
-        self._cs_attack_sequence(min_duration = min_duration, max_duration = max_duration)
+        self._scan_and_attack_cs_mobs(min_duration, max_duration)
 
     def _cs_pickit(self, skip_inspect: bool = False):
         new_items = self._pickit.pick_up_items(self)
@@ -600,8 +659,8 @@ class LightSorc(Sorceress):
                   Logger.info(f"Target locked at {point}")
                   return point
         
-        Logger.debug("Diablo target lock failed, using default")
-        return (100, -50)
+        Logger.debug("Diablo target lock failed")
+        return None
 
     def _check_boss_active(self) -> bool:
         # Check if "gold" nameplate is visible in top center
@@ -613,27 +672,49 @@ class LightSorc(Sorceress):
 
     def kill_diablo(self) -> bool:
         atk_len_dur = float(Config().char["atk_len_diablo"])
-        Logger.debug("Attacking Diablo at position 1/1")
+        Logger.debug("Attacking Diablo...")
         self._cast_static(1.0)
         
-        # Smart Aiming: Scan for Diablo
-        diablo_target = self._scan_and_lock_diablo() 
-
-        self._move_and_attack((0, 0), atk_len_dur, cast_target=diablo_target)
+        start_time = time.time()
+        diablo_target = None
+        force_exit = False
+        scan_failures = 0
         
-        if not self._check_boss_active():
-             Logger.info("Diablo dead (no nameplate). Skipping 2/3")
-             self._picked_up_items |= self._pickit.pick_up_items(self)
-             return True
-             
-        self._move_and_attack((60, 30), atk_len_dur, cast_target=(-60, -30))
-        
-        if not self._check_boss_active():
-             Logger.info("Diablo dead (no nameplate). Skipping 3/3")
-             self._picked_up_items |= self._pickit.pick_up_items(self)
-             return True
+        # Dynamic Combat Loop
+        while (time.time() - start_time) < atk_len_dur:
+            if force_exit:
+                break
 
-        self._move_and_attack((-60, -30), atk_len_dur, cast_target=(60, 30))
+            # 1. Acquire Target if needed
+            if diablo_target is None:
+                diablo_target = self._scan_and_lock_diablo()
+                if diablo_target is None:
+                    scan_failures += 1
+                    if scan_failures >= 3: # ~1.5 - 2.0 seconds of failing to find him
+                        Logger.info("Diablo not found for extended time. Assuming dead.")
+                        force_exit = True
+                        break
+                    continue
+                else:
+                    scan_failures = 0 # Reset on success
+            
+            # 2. Attack
+            
+            # 2. Attack
+            # Cast Lightning (High Single Target DPS)
+            # Use small iterations (2) to allow frequent re-checks
+            self._lightning(diablo_target, spray=10, iterations=2) 
+            
+            # 3. Re-Verify Target
+            # If he moved or died, the nameplate should be gone from the current mouse position.
+            if not self._check_boss_active():
+                # Check 5 times quickly to be sure (anti-flicker)
+                # But _check_boss_active is instant. 
+                # Let's assume if it's gone, it's gone.
+                Logger.info("Diablo target lost (Dead or Moved). Re-scanning.")
+                diablo_target = None
+        
+        # After loop ends (timeout)
         self._picked_up_items |= self._pickit.pick_up_items(self)
         return True
 

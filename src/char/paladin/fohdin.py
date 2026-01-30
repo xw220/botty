@@ -757,15 +757,103 @@ class FoHdin(Paladin):
         return True
 
 
-    #no aura effect on dia. not good for mob detection
+    def _scan_and_lock_diablo(self) -> tuple[int, int]:
+        # Scan in a cone/area around the expected spawn point (Upper Right)
+        scan_points = [
+            (100, -50), (120, -50), (80, -50), (100, -70), (100, -30),
+            (60, -20), (100, -100), (50, -50)
+        ]
+        
+        for point in scan_points:
+             pos_m = convert_abs_to_monitor(point)
+             mouse.move(*pos_m, delay_factor=[0.1, 0.2])
+             wait(0.05)
+             
+             # Check for Boss Nameplate color (Gold) in Enemy Info ROI
+             img = grab()
+             x, y, w, h = Config().ui_roi["enemy_info"]
+             roi_img = img[y:y+h, x:x+w]
+             
+             # Check for "gold" (Unique Monster Name)
+             # Use a threshold sum to avoid noise
+             mask, _ = color_filter(roi_img, Config().colors["gold"])
+             if np.sum(mask) > 500: # Threshold of gold pixels indicating text
+                  Logger.info(f"Target locked at {point}")
+                  return point
+        
+        Logger.debug("Diablo target lock failed")
+        return None
+
+    def _check_boss_active(self) -> bool:
+        # Check if "gold" nameplate is visible in top center
+        img = grab()
+        x, y, w, h = Config().ui_roi["enemy_info"]
+        roi_img = img[y:y+h, x:x+w]
+        mask, _ = color_filter(roi_img, Config().colors["gold"])
+        return np.sum(mask) > 500
+
+    def _check_trash_mob_active(self) -> bool:
+        # Check for RED pixels (Health Bar) AND Text presence (Name)
+        img = grab()
+        x, y, w, h = Config().ui_roi["enemy_info"]
+        roi_img = img[y:y+h, x:x+w]
+        
+        mask_red, _ = color_filter(roi_img, Config().colors["red"])
+        if np.sum(mask_red) < 500:
+            return False
+
+        # If red is present, check if there is also text (White, Blue, Gold, Yellow)
+        mask_white, _ = color_filter(roi_img, Config().colors["white"])
+        mask_blue, _ = color_filter(roi_img, Config().colors["blue"])
+        mask_gold, _ = color_filter(roi_img, Config().colors["gold"])
+        mask_yellow, _ = color_filter(roi_img, Config().colors["yellow"]) # Minions
+        
+        # Sum of all text pixels
+        text_pixels = np.sum(mask_white) + np.sum(mask_blue) + np.sum(mask_gold) + np.sum(mask_yellow)
+        
+        # Threshold for text
+        return text_pixels > 200
+
     def kill_diablo(self) -> bool:
-        ### APPROACH ###
-        ### ATTACK ###
         atk_len_dur = float(Config().char["atk_len_diablo"])
-        Logger.debug("Attacking Diablo at position 1/1")
-        diablo_abs = [100,-100] #hardcoded dia pos.
-        self._generic_foh_attack_sequence(default_target_abs=diablo_abs, min_duration=atk_len_dur, max_duration=atk_len_dur*3, aura="concentration", foh_to_holy_bolt_ratio=-3)
-        self._activate_cleanse_redemption()
-        ### LOOT ###
-        #self._cs_pickit()
+        Logger.debug("Attacking Diablo...")
+        
+        start_time = time.time()
+        diablo_target = None
+        force_exit = False
+        scan_failures = 0
+        
+        # Dynamic Combat Loop
+        while (time.time() - start_time) < atk_len_dur:
+            if force_exit:
+                break
+
+            # 1. Acquire Target if needed
+            if diablo_target is None:
+                diablo_target = self._scan_and_lock_diablo()
+                if diablo_target is None:
+                    scan_failures += 1
+                    if scan_failures >= 3: # ~1.5 - 2.0 seconds of failing to find him
+                        Logger.info("Diablo not found for extended time. Assuming dead.")
+                        force_exit = True
+                        break
+                    continue
+                else:
+                    scan_failures = 0 # Reset on success
+            
+            # 2. Attack
+            # Cast Holy Bolt (High Single Target DPS vs Demons)
+            # Use small iterations (e.g. 1-2 sec burst) to allow frequent re-checks
+            # _cast_holy_bolt uses "min_duration" or "spray". 
+            # We want roughly 0.5s of casting.
+            self._cast_holy_bolt(diablo_target, spray=10, min_duration=0.5, aura="concentration") 
+            
+            # 3. Re-Verify Target
+            # If he moved or died, the nameplate should be gone from the current mouse position.
+            if not self._check_boss_active():
+                Logger.info("Diablo target lost (Dead or Moved). Re-scanning.")
+                diablo_target = None
+        
+        # After loop ends
+        self._picked_up_items |= self._pickit.pick_up_items(self)
         return True

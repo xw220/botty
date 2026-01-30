@@ -30,6 +30,9 @@ def close_down_d2():
 def close_down_bnet_launcher():
     subprocess.call(["taskkill","/F","/IM","Battle.net.exe"], stderr=subprocess.DEVNULL)
 
+class MercDeathException(Exception):
+    pass
+
 @dataclass
 class WindowSpec:
     title_regex: 'str | None' = None
@@ -84,6 +87,12 @@ def restore_d2r_window_visibility():
 def wait(min_seconds, max_seconds = None):
     if max_seconds is None:
         max_seconds = min_seconds
+    
+    from config import Config
+    import threading
+    if Config().merc_died and threading.current_thread() is threading.main_thread():
+         raise MercDeathException("Mercenary died!")
+
     time.sleep(random.uniform(min_seconds, max_seconds))
     return
 

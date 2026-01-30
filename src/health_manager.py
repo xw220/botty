@@ -49,7 +49,9 @@ class HealthManager:
         self._last_merc_heal = time.time()
         self._callback = None
         self._last_chicken_screenshot = None
+        self._last_chicken_screenshot = None
         self._count_panel_detects = 0
+        self._last_merc_visible_time = time.time()
 
     def stop_monitor(self):
         self._do_monitor = False
@@ -136,7 +138,17 @@ class HealthManager:
                             self._last_merc_heal = time.time()
                         elif Config().char["heal_merc"] and (merc_health_percentage <= Config().char["heal_merc"] and last_drink > merc_hp_potion_delay):
                             belt.drink_potion("health", merc=True, stats=[merc_health_percentage])
+                            belt.drink_potion("health", merc=True, stats=[merc_health_percentage])
                             self._last_merc_heal = time.time()
+                    
+                    if is_visible(ScreenObjects.MercIcon, img):
+                        self._last_merc_visible_time = time.time()
+                    elif Config().char["use_merc"]:
+                        # Merc icon not visible...
+                        if (time.time() - self._last_merc_visible_time) > 2.0 and not get_pause_state():
+                             if Config().char["immediate_merc_revive"] and not Config().merc_died:
+                                 Logger.warning("Mercenary icon not visible for 2.0s -> Assuming DEAD.")
+                                 Config().merc_died = True
                 if not get_panel_check_paused() and (is_visible(ScreenObjects.LeftPanel, img) or is_visible(ScreenObjects.RightPanel, img)):
                     Logger.warning(f"Found an open inventory / quest / skill / stats page. Close it.")
                     self._count_panel_detects += 1
