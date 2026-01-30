@@ -8,12 +8,16 @@ from pather import Location
 import numpy as np
 from screen import convert_abs_to_monitor, grab, convert_screen_to_abs
 from config import Config
-
+from pather import Pather
+from utils.misc import color_filter
+from item.pickit import PickIt
 
 class LightSorc(Sorceress):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, skill_hotkeys: dict, pather: Pather, pickit: PickIt):
         Logger.info("Setting up Light Sorc")
-        super().__init__(*args, **kwargs)
+        super().__init__(skill_hotkeys, pather)
+        self._pickit = pickit
+        self._picked_up_items = False
 
     def _chain_lightning(self, cast_pos_abs: tuple[float, float], delay: tuple[float, float] = (0.2, 0.3), spray: int = 10):
         keyboard.send(Config().char["stand_still"], do_release=False)
@@ -237,6 +241,400 @@ class LightSorc(Sorceress):
             self._lightning(cast_pos_abs, spray=11)
             self._chain_lightning(cast_pos_abs, spray=11)
         wait(self._cast_duration, self._cast_duration + 0.2)
+        return True
+
+    def _move_and_attack(self, abs_move: tuple[int, int], atk_len: float, cast_target: tuple[int, int] = (0, 0)):
+        pos_m = convert_abs_to_monitor(abs_move)
+        self.pre_move()
+        self.move(pos_m, force_move=True)
+        # For Sorc, we just cast a few times. atk_len is treated as a multiplier for iterations.
+        # Assuming atk_len is usually around 1-3.
+        # _chain_lightning does 4 casts.
+        duration = 1 if atk_len < 1 else int(atk_len)
+        self._chain_lightning(cast_target, spray=15)
+        for _ in range(duration - 1):
+             self._chain_lightning(cast_target, spray=15)
+
+    def _cs_attack_sequence(self, min_duration: float = Config().char["atk_len_cs_trashmobs"], max_duration: float = Config().char["atk_len_cs_trashmobs"] * 3):
+        # Improved Fohdin sequence: Attack in a cross pattern to cover more area
+        targets = [(0, 0), (50, 0), (-50, 0), (0, 50), (0, -50)]
+        for target in targets:
+             self._move_and_attack((0, 0), min_duration / len(targets), cast_target=target)
+
+    def _cs_trash_mobs_attack_sequence(self, min_duration: float = 1.2, max_duration: float = Config().char["atk_len_cs_trashmobs"]):
+        self._cs_attack_sequence(min_duration = min_duration, max_duration = max_duration)
+
+    def _cs_pickit(self, skip_inspect: bool = False):
+        new_items = self._pickit.pick_up_items(self)
+        self._picked_up_items |= new_items
+
+    def kill_cs_trash(self, location:str) -> bool:
+        match location:
+            case "sealdance":
+                self._cs_trash_mobs_attack_sequence()
+
+            case "rof_01": #node 603 - outside CS in ROF
+                if not self._pather.traverse_nodes([603], self, timeout=3): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([603], self): return False
+
+            case "rof_02": #node 604 - inside ROF
+                if not self._pather.traverse_nodes([604], self, timeout=3): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "entrance_hall_01":
+                self._pather.traverse_nodes_fixed("diablo_entrance_hall_1", self)
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "entrance_hall_02":
+                if not self._pather.traverse_nodes([670], self): return False
+                self._pather.traverse_nodes_fixed("diablo_entrance_1_670_672", self)
+                if not self._pather.traverse_nodes([670], self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([671], self): return False
+                self._pather.traverse_nodes_fixed("diablo_entrance_hall_2", self)
+
+            case "entrance1_01":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([673], self): return False
+
+            case "entrance1_02":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                self._pather.traverse_nodes_fixed("diablo_entrance_1_1", self)
+                if not self._pather.traverse_nodes([674], self): return False
+
+            case "entrance1_03":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([675], self): return False
+                self._pather.traverse_nodes_fixed("diablo_entrance_1_1", self)
+                if not self._pather.traverse_nodes([676], self): return False
+
+            case "entrance1_04":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "entrance2_01":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "entrance2_02":
+                self._pather.traverse_nodes_fixed("diablo_trash_b_hall2_605_right", self)
+                wait (0.2, 0.5)
+                if not self._pather.traverse_nodes([605], self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "entrance2_03":
+                self._pather.traverse_nodes_fixed("diablo_trash_b_hall2_605_top1", self)
+                wait (0.2, 0.5)
+                self._pather.traverse_nodes_fixed("diablo_trash_b_hall2_605_top2", self)
+                if not self._pather.traverse_nodes([605], self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "entrance2_04":
+                if not self._pather.traverse_nodes([605], self): return False
+                self._pather.traverse_nodes_fixed("diablo_trash_b_hall2_605_hall3", self)
+                if not self._pather.traverse_nodes([609], self): return False
+                self._pather.traverse_nodes_fixed("diablo_trash_b_hall3_pull_609", self)
+                if not self._pather.traverse_nodes([609], self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit(skip_inspect=True)
+                if not self._pather.traverse_nodes([609], self): return False
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([609], self): return False
+
+            case "dia_trash_a" | "dia_trash_b" | "dia_trash_c":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "layoutcheck_a" | "layoutcheck_b" | "layoutcheck_c":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "pent_before_a":
+                pass
+
+            case "pent_before_b" | "pent_before_c":
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "A1-L_01":
+                if not self._pather.traverse_nodes([611], self): return False
+                self._cs_trash_mobs_attack_sequence()
+
+            case "A1-L_02":
+                if not self._pather.traverse_nodes([612], self): return False
+                self._cs_trash_mobs_attack_sequence()
+
+            case "A1-L_03":
+                if not self._pather.traverse_nodes([613], self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+
+            case "A1-L_seal1":
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([614], self): return False
+                self._cs_attack_sequence(min_duration=1)
+
+            case "A1-L_seal2":
+                if not self._pather.traverse_nodes([613, 615], self): return False
+                self._cs_attack_sequence(min_duration=1)
+
+            case "A2-Y_01":
+                if not self._pather.traverse_nodes_fixed("dia_a2y_hop_622", self): return False
+                if not self._pather.traverse_nodes([622], self): return False
+                self._cs_trash_mobs_attack_sequence()
+
+            case "A2-Y_02":
+                self._cs_trash_mobs_attack_sequence()
+
+            case "A2-Y_03":
+                pass
+
+            case "A2-Y_seal1":
+                if not self._pather.traverse_nodes([625], self): return False
+                self._cs_attack_sequence(min_duration=1)
+
+            case "A2-Y_seal2": #B only has 1 seal, which is the boss seal = seal2
+                self._pather.traverse_nodes_fixed("dia_a2y_sealfake_sealboss", self)
+                self._cs_attack_sequence(min_duration=1)
+
+            case "B1-S_01" | "B1-S_02" | "B1-S_03":
+                pass
+
+            case "B1-S_seal2":
+                if not self._pather.traverse_nodes([634], self): return False
+                self._cs_trash_mobs_attack_sequence()
+
+            case "B2-U_01" | "B2-U_02" | "B2-U_03":
+                pass
+
+            case "B2-U_seal2":
+                self._pather.traverse_nodes_fixed("dia_b2u_bold_seal", self)
+                if not self._pather.traverse_nodes([644], self): return False
+                self._cs_attack_sequence(min_duration=1)
+
+            case "C1-F_01" | "C1-F_02" | "C1-F_03":
+                pass
+
+            case "C1-F_seal1":
+                wait(0.1,0.3)
+                self._pather.traverse_nodes_fixed("dia_c1f_hop_fakeseal", self)
+                wait(0.1,0.3)
+                if not self._pather.traverse_nodes([655], self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([655], self): return False
+                self._cs_attack_sequence(min_duration=1)
+
+            case "C1-F_seal2":
+                self._pather.traverse_nodes_fixed("dia_c1f_654_651", self)
+                if not self._pather.traverse_nodes([652], self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([652], self): return False
+                self._cs_attack_sequence(min_duration=1)
+
+            case "C2-G_01" | "C2-G_02" | "C2-G_03":
+                pass
+
+            case "C2-G_seal1":
+                if not self._pather.traverse_nodes([663, 662], self) or not self._pather.traverse_nodes_fixed("dia_c2g_lc_661", self): return False
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([662], self): return False
+                self._cs_attack_sequence(min_duration=1)
+
+            case "C2-G_seal2":
+                seal_layout="C2-G"
+                if not self._pather.traverse_nodes([662], self) or not self._pather.traverse_nodes_fixed("dia_c2g_663", self): return False
+                atk_dur_min = Config().char["atk_len_diablo_infector"]
+                atk_dur_max = atk_dur_min * 3
+                Logger.debug(seal_layout + ": Attacking Infector at position 1/2")
+                self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                if not self._pather.traverse_nodes([663], self): return False
+                Logger.debug(seal_layout + ": Attacking Infector at position 2/2")
+                self._cs_attack_sequence(min_duration=2, max_duration=atk_dur_max)
+                self._cs_pickit(skip_inspect=True)
+                if not self._pather.traverse_nodes([664, 665], self): return False
+
+            case _:
+                Logger.error("No location argument given for kill_cs_trash(" + location + "), should not happen")
+                self._cs_trash_mobs_attack_sequence()
+                self._cs_pickit()
+        return True
+
+    def kill_vizier(self, seal_layout:str) -> bool:
+        atk_dur_min = Config().char["atk_len_diablo_vizier"]
+        atk_dur_max = atk_dur_min * 3
+        match seal_layout:
+            case "A1-L":
+                if not self._pather.traverse_nodes([612], self): return False
+                Logger.debug(seal_layout + ": Attacking Vizier at position 1/2")
+                self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                Logger.debug(seal_layout + ": Attacking Vizier at position 2/2")
+                self._pather.traverse_nodes([611], self, timeout=3)
+                self._cs_attack_sequence(min_duration=2, max_duration=atk_dur_max)
+                self._cs_pickit(skip_inspect=True)
+                if not self._pather.traverse_nodes([612], self): return False
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([612], self): return False
+
+            case "A2-Y":
+                if not self._pather.traverse_nodes([627, 622], self): return False
+                Logger.debug(seal_layout + ": Attacking Vizier at position 1/3")
+                self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                Logger.debug(seal_layout + ": Attacking Vizier at position 2/3")
+                self._pather.traverse_nodes([623], self, timeout=3)
+                self._cs_attack_sequence(min_duration=1.5, max_duration=atk_dur_max)
+                Logger.debug(seal_layout + ": Attacking Vizier at position 3/3")
+                if not self._pather.traverse_nodes([624], self): return False
+                self._cs_attack_sequence(min_duration=1.5, max_duration=atk_dur_max)
+                self._cs_pickit(skip_inspect=True)
+                if not self._pather.traverse_nodes([624], self): return False
+                Logger.debug(seal_layout + ": Approaching Hop")
+                if not self._pather.traverse_nodes_fixed("dia_a2y_hop_622", self): return False
+                Logger.debug(seal_layout + ": Hop!")
+                if not self._pather.traverse_nodes([622], self): return False
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([622], self): return False
+
+            case _:
+                Logger.warning(seal_layout + ": Invalid location for kill_vizier("+ seal_layout +"), should not happen.")
+                return False
+        return True
+
+    def kill_deseis(self, seal_layout:str) -> bool:
+        atk_dur_min = Config().char["atk_len_diablo_deseis"]
+        atk_dur_max = atk_dur_min * 3
+        match seal_layout:
+            case "B1-S":
+                self._pather.traverse_nodes_fixed("dia_b1s_seal_deseis_foh", self)
+                nodes = [631]
+                Logger.debug(f"{seal_layout}: Attacking De Seis at position 1/{len(nodes)+1}")
+                self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                for i, node in enumerate(nodes):
+                    Logger.debug(f"{seal_layout}: Attacking De Seis at position {i+2}/{len(nodes)+1}")
+                    self._pather.traverse_nodes([node], self, timeout=3)
+                    self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                self._cs_pickit()
+
+            case "B2-U":
+                self._pather.traverse_nodes_fixed("dia_b2u_644_646", self)
+                nodes = [646, 641]
+                Logger.debug(seal_layout + f": Attacking De Seis at position 1/{len(nodes)+1}")
+                self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                for i, node in enumerate(nodes):
+                    Logger.debug(f"{seal_layout}: Attacking De Seis at position {i+2}/{len(nodes)+1}")
+                    self._pather.traverse_nodes([node], self, timeout=3)
+                    self._cs_attack_sequence(min_duration=2, max_duration=atk_dur_max)
+                self._cs_pickit(skip_inspect=True)
+                if not self._pather.traverse_nodes([641], self): return False
+                if not self._pather.traverse_nodes([646], self): return False
+                self._cs_pickit(skip_inspect=True)
+                if not self._pather.traverse_nodes([646], self): return False
+                if not self._pather.traverse_nodes([640], self): return False
+                self._cs_pickit()
+
+            case _:
+                Logger.warning(seal_layout + ": Invalid location for kill_deseis("+ seal_layout +"), should not happen.")
+                return False
+        return True
+
+    def kill_infector(self, seal_layout:str) -> bool:
+        atk_dur_min = Config().char["atk_len_diablo_infector"]
+        atk_dur_max = atk_dur_min * 3
+        match seal_layout:
+            case "C1-F":
+                Logger.debug(seal_layout + ": Attacking Infector at position 1/1")
+                self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                self._pather.traverse_nodes_fixed("dia_c1f_652", self)
+                Logger.debug(seal_layout + ": Attacking Infector at position 2/2")
+                self._cs_attack_sequence(min_duration=2, max_duration=atk_dur_max)
+                self._cs_pickit()
+
+            case "C2-G":
+                if not self._pather.traverse_nodes([665], self): return False
+                Logger.debug(seal_layout + ": Attacking Infector at position 1/2")
+                self._cs_attack_sequence(min_duration=atk_dur_min, max_duration=atk_dur_max)
+                if not self._pather.traverse_nodes([663], self): return False
+                Logger.debug(seal_layout + ": Attacking Infector at position 2/2")
+                self._cs_attack_sequence(min_duration=2, max_duration=atk_dur_max)
+                self._cs_pickit()
+                if not self._pather.traverse_nodes([664, 665], self): return False
+
+            case _:
+                Logger.warning(seal_layout + ": Invalid location for kill_infector("+ seal_layout +"), should not happen.")
+                return False
+        return True
+
+    def _scan_and_lock_diablo(self) -> tuple[int, int]:
+        # Scan in a cone/area around the expected spawn point (Upper Right)
+        scan_points = [
+            (100, -50), (120, -50), (80, -50), (100, -70), (100, -30),
+            (60, -20), (100, -100), (50, -50)
+        ]
+        
+        for point in scan_points:
+             pos_m = convert_abs_to_monitor(point)
+             mouse.move(*pos_m, delay_factor=[0.1, 0.2])
+             wait(0.05)
+             
+             # Check for Boss Nameplate color (Gold) in Enemy Info ROI
+             img = grab()
+             x, y, w, h = Config().ui_roi["enemy_info"]
+             roi_img = img[y:y+h, x:x+w]
+             
+             # Check for "gold" (Unique Monster Name)
+             # Use a threshold sum to avoid noise
+             mask, _ = color_filter(roi_img, Config().colors["gold"])
+             if np.sum(mask) > 500: # Threshold of gold pixels indicating text
+                  Logger.info(f"Target locked at {point}")
+                  return point
+        
+        Logger.debug("Diablo target lock failed, using default")
+        return (100, -50)
+
+    def _check_boss_active(self) -> bool:
+        # Check if "gold" nameplate is visible in top center
+        img = grab()
+        x, y, w, h = Config().ui_roi["enemy_info"]
+        roi_img = img[y:y+h, x:x+w]
+        mask, _ = color_filter(roi_img, Config().colors["gold"])
+        return np.sum(mask) > 500
+
+    def kill_diablo(self) -> bool:
+        atk_len_dur = float(Config().char["atk_len_diablo"])
+        Logger.debug("Attacking Diablo at position 1/1")
+        self._cast_static(1.0)
+        
+        # Smart Aiming: Scan for Diablo
+        diablo_target = self._scan_and_lock_diablo() 
+
+        self._move_and_attack((0, 0), atk_len_dur, cast_target=diablo_target)
+        
+        if not self._check_boss_active():
+             Logger.info("Diablo dead (no nameplate). Skipping 2/3")
+             self._picked_up_items |= self._pickit.pick_up_items(self)
+             return True
+             
+        self._move_and_attack((60, 30), atk_len_dur, cast_target=(-60, -30))
+        
+        if not self._check_boss_active():
+             Logger.info("Diablo dead (no nameplate). Skipping 3/3")
+             self._picked_up_items |= self._pickit.pick_up_items(self)
+             return True
+
+        self._move_and_attack((-60, -30), atk_len_dur, cast_target=(60, 30))
+        self._picked_up_items |= self._pickit.pick_up_items(self)
         return True
 
 if __name__ == "__main__":

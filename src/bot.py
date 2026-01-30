@@ -52,7 +52,7 @@ class Bot:
         # Create Character
         match Config().char["type"]:
             case "sorceress" | "light_sorc":
-                self._char: IChar = LightSorc(Config().light_sorc, self._pather)
+                self._char: IChar = LightSorc(Config().light_sorc, self._pather, self._pickit)
             case "blizz_sorc":
                 self._char: IChar = BlizzSorc(Config().blizz_sorc, self._pather)
             case "nova_sorc":
