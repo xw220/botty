@@ -270,39 +270,25 @@ class IChar:
         return False
 
     def _pre_buff_cta(self):
-        # Check if we have cta by checking if we have battle command on right skill
-        self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
-        has_cta_bound = skills.is_right_skill_selected(["BC", "BO"])
+        # We try to obtain the Battle Command skill (Verify that we have CTA)
+        # We retry switching weapons up to 3 times
+        for _ in range(3):
+            self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
+            if skills.is_right_skill_selected(["BC", "BO"]):
+                Logger.debug("CTA buffs verified. Casting buffs.")
+                self._cast_cta_buffs()
+                # Switch back to primary
+                self._switch_weapon()
+                return
 
-        if has_cta_bound:
-            # We are on the secondary weapon slot (CTA)
-            Logger.debug("CTA buffs already available (on secondary slot). Casting buffs.")
-            self._cast_cta_buffs()
-            # Switch back to primary
+            # If we don't have it, switch weapon and try again
             self._switch_weapon()
-        else:
-            # We are likely on the primary weapon slot
-            # Try to switch to secondary
-            if self._switch_weapon():
-                # Check again if we have the skills now
-                self._set_active_skill("right", "")
-                self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
-                if skills.is_right_skill_selected(["BC", "BO"]):
-                    Logger.debug("Switched to CTA slot. Casting buffs.")
-                    self._cast_cta_buffs()
-                    # Switch back to primary
-                    self._switch_weapon()
-                else:
-                    Logger.warning("Switched weapon but Battle Command is still not available. Verify CTA setup.")
-                    # Attempt to switch back just in case we are now on a useless slot
-                    self._switch_weapon()
-                    Config().char["cta_available"] = 0
-            else:
-                 Logger.warning("Failed to switch weapon to activate CTA.")
+        
+        Logger.warning("Could not activate CTA after multiple retries. Skipping buffs.")
 
     def _switch_weapon(self) -> bool:
         keyboard.send(Config().char["weapon_switch"])
-        wait(0.3, 0.35)
+        wait(0.5, 0.7)
         return True
 
     def _cast_cta_buffs(self):

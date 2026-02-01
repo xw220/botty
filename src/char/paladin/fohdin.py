@@ -10,7 +10,7 @@ from utils.custom_mouse import mouse
 from char.paladin import Paladin
 from logger import Logger
 from config import Config
-from utils.misc import wait
+from utils.misc import wait, color_filter
 from pather import Location
 from target_detect import get_visible_targets, TargetInfo, log_targets
 
@@ -770,16 +770,27 @@ class FoHdin(Paladin):
              wait(0.05)
              
              # Check for Boss Nameplate color (Gold) in Enemy Info ROI
-             img = grab()
-             x, y, w, h = Config().ui_roi["enemy_info"]
-             roi_img = img[y:y+h, x:x+w]
-             
-             # Check for "gold" (Unique Monster Name)
-             # Use a threshold sum to avoid noise
-             mask, _ = color_filter(roi_img, Config().colors["gold"])
-             if np.sum(mask) > 500: # Threshold of gold pixels indicating text
-                  Logger.info(f"Target locked at {point}")
-                  return point
+             if self._check_boss_active():
+                  # Found a valid point. Now try to find the CENTER of the nameplate/mob.
+                  # Scan neighbors to calculate centroid
+                  valid_points = [point]
+                  offsets = [(30, 0), (-30, 0), (0, 30), (0, -30)]
+                  
+                  for off in offsets:
+                      check_cnt = (point[0] + off[0], point[1] + off[1])
+                      pos_m_off = convert_abs_to_monitor(check_cnt)
+                      mouse.move(*pos_m_off, delay_factor=[0.05, 0.1])
+                      wait(0.02)
+                      if self._check_boss_active():
+                          valid_points.append(check_cnt)
+                  
+                  # Calculate Centroid
+                  avg_x = sum(p[0] for p in valid_points) / len(valid_points)
+                  avg_y = sum(p[1] for p in valid_points) / len(valid_points)
+                  
+                  centroid = (avg_x, avg_y)
+                  Logger.info(f"Target locked at {point} -> Centered at {centroid} (matches: {len(valid_points)})")
+                  return centroid
         
         Logger.debug("Diablo target lock failed")
         return None
@@ -846,7 +857,8 @@ class FoHdin(Paladin):
             # Use small iterations (e.g. 1-2 sec burst) to allow frequent re-checks
             # _cast_holy_bolt uses "min_duration" or "spray". 
             # We want roughly 0.5s of casting.
-            self._cast_holy_bolt(diablo_target, spray=10, min_duration=0.5, aura="concentration") 
+            # User Request: Only Holy Bolt
+            self._cast_holy_bolt(diablo_target, spray=2, min_duration=0.5, aura="concentration") 
             
             # 3. Re-Verify Target
             # If he moved or died, the nameplate should be gone from the current mouse position.

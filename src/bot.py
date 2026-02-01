@@ -12,11 +12,12 @@ from collections import OrderedDict
 from health_manager import set_pause_state
 from transmute import Transmute
 from utils.misc import wait, hms
+from utils.custom_mouse import mouse
 from utils.restart import safe_exit, restart_game
 from game_stats import GameStats
 from logger import Logger
 from config import Config
-from screen import grab
+from screen import grab, convert_screen_to_monitor
 import template_finder
 from char import IChar
 from item.pickit import PickIt
@@ -262,6 +263,7 @@ class Bot:
 
     def on_start_from_town(self):
         self._curr_loc = self._town_manager.wait_for_town_spawn()
+        self._clear_cursor_at_start()
 
         # Handle picking up corpse in case of death
         if (corpse_present := is_visible(ScreenObjects.Corpse)):
@@ -585,6 +587,34 @@ class Bot:
     # ... I need to wrap other runs similarly ...
 
 
+
+
+    def _clear_cursor_at_start(self):
+        # Open inventory to check for held items
+        # If item is held, drop it by clicking on "safe zone" (screen left)
+        # Hold "stand still" key to prevent movement if cursor is empty
+        Logger.debug("Clearing cursor at start...")
+        img = personal.open()
+        
+        # Hold Stand Still to prevent movement
+        keyboard.send(Config().char["stand_still"], do_release=False)
+        wait(0.1, 0.15)
+        
+        # Move to safe drop zone (left side of screen)
+        # Using a relative move from center or fixed "safe" coordinate?
+        # Fixed screen coordinate usually safer. Screen width * 0.1, Height * 0.5
+        x = int(Config().ui_pos["screen_width"] * 0.1)
+        y = int(Config().ui_pos["screen_height"] * 0.5)
+        x_m, y_m = convert_screen_to_monitor((x, y))
+        mouse.move(x_m, y_m, randomize=20, delay_factor=[0.2, 0.4])
+        wait(0.1, 0.2)
+        mouse.click(button="left")
+        wait(0.3, 0.4)
+        
+        # Release Stand Still
+        keyboard.send(Config().char["stand_still"], do_press=False)
+        
+        common.close()
 
     def on_run_eldritch(self):
         self._do_runs["run_eldritch"] = False
