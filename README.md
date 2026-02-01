@@ -3,7 +3,7 @@
 Pixelbot for Diablo 2 Resurrected. This project is for informational and educational purposes only.
 
 ## Getting started & Prerequisites
-- **Game Version**: This version is tested and compatible with D2R patch 2.9.0, version 1.7.90898.
+- **Game Version**: This version is tested and compatible with D2R patch 2.9.0, version 1.7.91403.
 - D2R needs to be in English Language
 - Botty currently works with 720p D2R window (will be adjusted automatically on auto settings)
 
