@@ -36,7 +36,7 @@ class IChar:
     def _set_active_skill(self, mouse_click_type: str = "left", skill: str =""):
         self._active_skill[mouse_click_type] = skill
 
-    def _select_skill(self, skill: str, mouse_click_type: str = "left", delay: float | list | tuple = None):
+    def _select_skill(self, skill: str, mouse_click_type: str = "left", delay: float | list | tuple = None, force: bool = False):
         if not (
             skill in self._skill_hotkeys and (hotkey := self._skill_hotkeys[skill])
             or (skill in Config().char and (hotkey := Config().char[skill]))
@@ -45,7 +45,7 @@ class IChar:
             self._set_active_skill(mouse_click_type, "")
             return False
 
-        if self._active_skill[mouse_click_type] != skill:
+        if force or self._active_skill[mouse_click_type] != skill:
             keyboard.send(hotkey)
         self._set_active_skill(mouse_click_type, skill)
         if delay:
@@ -273,7 +273,8 @@ class IChar:
         # We try to obtain the Battle Command skill (Verify that we have CTA)
         # We retry switching weapons up to 3 times
         for _ in range(3):
-            self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2))
+            # We force the skill selection to be sure the hotkey is pressed before we judge
+            self._select_skill(skill="battle_command", mouse_click_type="right", delay=(0.1, 0.2), force=True)
             if skills.is_right_skill_selected(["BC", "BO"]):
                 Logger.debug("CTA buffs verified. Casting buffs.")
                 self._cast_cta_buffs()
@@ -288,6 +289,9 @@ class IChar:
 
     def _switch_weapon(self) -> bool:
         keyboard.send(Config().char["weapon_switch"])
+        # Important: reset active skills because they change on weapon switch!
+        self._active_skill["left"] = ""
+        self._active_skill["right"] = ""
         wait(0.5, 0.7)
         return True
 
